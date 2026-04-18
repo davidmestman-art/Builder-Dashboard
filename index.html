@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Builder Account Tracker</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      color: #fff;
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+    }
+
+    header h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: 0.5px; }
+    header span { font-size: 0.85rem; opacity: 0.65; }
+
+    .main { max-width: 1200px; margin: 0 auto; padding: 28px 20px; }
+
+    /* Summary Cards */
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px 24px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+      border-left: 4px solid #0f3460;
+    }
+
+    .card.active  { border-left-color: #22c55e; }
+    .card.inactive { border-left-color: #ef4444; }
+    .card.monthly { border-left-color: #3b82f6; }
+    .card.ytd     { border-left-color: #a855f7; }
+
+    .card-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #6b7280; margin-bottom: 6px; }
+    .card-value { font-size: 1.75rem; font-weight: 700; color: #1a1a2e; }
+
+    /* Toolbar */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .toolbar h2 { font-size: 1.1rem; font-weight: 600; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 18px;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: #0f3460; color: #fff; }
+    .btn-primary:hover { opacity: 0.88; }
+    .btn-success { background: #22c55e; color: #fff; }
+    .btn-success:hover { opacity: 0.88; }
+    .btn-danger  { background: #ef4444; color: #fff; }
+    .btn-danger:hover { opacity: 0.88; }
+    .btn-ghost   { background: transparent; color: #6b7280; border: 1px solid #d1d5db; }
+    .btn-ghost:hover { background: #f9fafb; }
+    .btn-sm { padding: 5px 11px; font-size: 0.8rem; }
+
+    /* Table */
+    .table-wrap {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+      overflow: hidden;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #9ca3af;
+    }
+
+    .empty-state svg { margin-bottom: 12px; opacity: 0.4; }
+    .empty-state p { font-size: 0.95rem; }
+
+    table { width: 100%; border-collapse: collapse; }
+    thead { background: #f8fafc; }
+    th {
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: #6b7280;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    td {
+      padding: 13px 16px;
+      font-size: 0.875rem;
+      border-bottom: 1px solid #f3f4f6;
+      vertical-align: middle;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafbff; }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .badge-active   { background: #dcfce7; color: #16a34a; }
+    .badge-inactive { background: #fee2e2; color: #dc2626; }
+    .badge-pending  { background: #fef9c3; color: #ca8a04; }
+
+    .actions { display: flex; gap: 6px; }
+
+    /* Modal */
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .overlay.open { display: flex; }
+
+    .modal {
+      background: #fff;
+      border-radius: 14px;
+      padding: 28px;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+      position: relative;
+    }
+
+    .modal h3 { font-size: 1.15rem; font-weight: 700; margin-bottom: 20px; }
+
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 5px; }
+
+    input, select {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1.5px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      color: #1a1a2e;
+      background: #fff;
+      transition: border-color 0.15s;
+      outline: none;
+    }
+
+    input:focus, select:focus { border-color: #0f3460; }
+
+    .modal-footer {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 22px;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 16px; right: 18px;
+      background: none;
+      border: none;
+      font-size: 1.3rem;
+      cursor: pointer;
+      color: #9ca3af;
+      line-height: 1;
+    }
+
+    .close-btn:hover { color: #374151; }
+
+    /* Confirm dialog */
+    .confirm-modal { max-width: 360px; text-align: center; }
+    .confirm-modal p { color: #6b7280; font-size: 0.9rem; margin-bottom: 6px; }
+    .confirm-modal strong { font-size: 1rem; }
+
+    @media (max-width: 640px) {
+      header { padding: 16px 18px; }
+      .main { padding: 18px 12px; }
+      th:nth-child(3), td:nth-child(3) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Builder Account Tracker</h1>
+  <span id="headerDate"></span>
+</header>
+
+<div class="main">
+
+  <!-- Summary Cards -->
+  <div class="summary">
+    <div class="card">
+      <div class="card-label">Total Accounts</div>
+      <div class="card-value" id="sumTotal">0</div>
+    </div>
+    <div class="card active">
+      <div class="card-label">Active</div>
+      <div class="card-value" id="sumActive">0</div>
+    </div>
+    <div class="card monthly">
+      <div class="card-label">Total Monthly Revenue</div>
+      <div class="card-value" id="sumMonthly">$0</div>
+    </div>
+    <div class="card ytd">
+      <div class="card-label">Total YTD Revenue</div>
+      <div class="card-value" id="sumYTD">$0</div>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <h2>Accounts</h2>
+    <button class="btn btn-primary" onclick="openAdd()">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add Account
+    </button>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <div id="emptyState" class="empty-state">
+      <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/>
+        <line x1="9" y1="21" x2="9" y2="9"/>
+      </svg>
+      <p>No accounts yet. Click <strong>Add Account</strong> to get started.</p>
+    </div>
+    <table id="accountTable" style="display:none">
+      <thead>
+        <tr>
+          <th>Builder Name</th>
+          <th>Community</th>
+          <th>Monthly Revenue</th>
+          <th>YTD Revenue</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add / Edit Modal -->
+<div class="overlay" id="formOverlay">
+  <div class="modal">
+    <button class="close-btn" onclick="closeForm()">&#x2715;</button>
+    <h3 id="modalTitle">Add Account</h3>
+    <div class="form-group">
+      <label for="fieldName">Builder Name *</label>
+      <input id="fieldName" type="text" placeholder="e.g. Horizon Homes" />
+    </div>
+    <div class="form-group">
+      <label for="fieldCommunity">Community *</label>
+      <input id="fieldCommunity" type="text" placeholder="e.g. Lakewood Estates" />
+    </div>
+    <div class="form-group">
+      <label for="fieldMonthly">Monthly Revenue ($)</label>
+      <input id="fieldMonthly" type="number" min="0" placeholder="0.00" />
+    </div>
+    <div class="form-group">
+      <label for="fieldYTD">YTD Revenue ($)</label>
+      <input id="fieldYTD" type="number" min="0" placeholder="0.00" />
+    </div>
+    <div class="form-group">
+      <label for="fieldStatus">Account Status</label>
+      <select id="fieldStatus">
+        <option value="Active">Active</option>
+        <option value="Inactive">Inactive</option>
+        <option value="Pending">Pending</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeForm()">Cancel</button>
+      <button class="btn btn-success" id="saveBtn" onclick="saveAccount()">Save Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Delete Modal -->
+<div class="overlay" id="confirmOverlay">
+  <div class="modal confirm-modal">
+    <h3>Delete Account</h3>
+    <p>Are you sure you want to delete</p>
+    <strong id="confirmName"></strong>
+    <p style="margin-top:4px">This action cannot be undone.</p>
+    <div class="modal-footer" style="justify-content:center; margin-top:18px;">
+      <button class="btn btn-ghost" onclick="closeConfirm()">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const STORAGE_KEY = 'builder_accounts';
+  let accounts = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  let editId = null;
+  let deleteId = null;
+
+  // ── Persistence ──────────────────────────────────────────
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(accounts));
+  }
+
+  // ── Rendering ────────────────────────────────────────────
+  function render() {
+    const tbody = document.getElementById('tableBody');
+    const table = document.getElementById('accountTable');
+    const empty = document.getElementById('emptyState');
+
+    if (accounts.length === 0) {
+      table.style.display = 'none';
+      empty.style.display = 'block';
+    } else {
+      table.style.display = 'table';
+      empty.style.display = 'none';
+    }
+
+    tbody.innerHTML = accounts.map(a => `
+      <tr>
+        <td><strong>${esc(a.name)}</strong></td>
+        <td>${esc(a.community)}</td>
+        <td>${fmtMoney(a.monthly)}</td>
+        <td>${fmtMoney(a.ytd)}</td>
+        <td><span class="badge badge-${a.status.toLowerCase()}">${esc(a.status)}</span></td>
+        <td>
+          <div class="actions">
+            <button class="btn btn-ghost btn-sm" onclick="openEdit('${a.id}')">Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="openConfirm('${a.id}')">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+
+    updateSummary();
+  }
+
+  function updateSummary() {
+    const total    = accounts.length;
+    const active   = accounts.filter(a => a.status === 'Active').length;
+    const monthly  = accounts.reduce((s, a) => s + (parseFloat(a.monthly) || 0), 0);
+    const ytd      = accounts.reduce((s, a) => s + (parseFloat(a.ytd)     || 0), 0);
+
+    document.getElementById('sumTotal').textContent   = total;
+    document.getElementById('sumActive').textContent  = active;
+    document.getElementById('sumMonthly').textContent = fmtMoney(monthly);
+    document.getElementById('sumYTD').textContent     = fmtMoney(ytd);
+  }
+
+  // ── Helpers ──────────────────────────────────────────────
+  function esc(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function fmtMoney(val) {
+    const n = parseFloat(val) || 0;
+    return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  }
+
+  function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2);
+  }
+
+  // ── Form modal ───────────────────────────────────────────
+  function openAdd() {
+    editId = null;
+    document.getElementById('modalTitle').textContent = 'Add Account';
+    document.getElementById('saveBtn').textContent    = 'Save Account';
+    clearForm();
+    document.getElementById('formOverlay').classList.add('open');
+    document.getElementById('fieldName').focus();
+  }
+
+  function openEdit(id) {
+    const a = accounts.find(x => x.id === id);
+    if (!a) return;
+    editId = id;
+    document.getElementById('modalTitle').textContent = 'Edit Account';
+    document.getElementById('saveBtn').textContent    = 'Update Account';
+    document.getElementById('fieldName').value      = a.name;
+    document.getElementById('fieldCommunity').value = a.community;
+    document.getElementById('fieldMonthly').value   = a.monthly;
+    document.getElementById('fieldYTD').value       = a.ytd;
+    document.getElementById('fieldStatus').value    = a.status;
+    document.getElementById('formOverlay').classList.add('open');
+    document.getElementById('fieldName').focus();
+  }
+
+  function closeForm() {
+    document.getElementById('formOverlay').classList.remove('open');
+  }
+
+  function clearForm() {
+    ['fieldName','fieldCommunity','fieldMonthly','fieldYTD'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('fieldStatus').value = 'Active';
+  }
+
+  function saveAccount() {
+    const name      = document.getElementById('fieldName').value.trim();
+    const community = document.getElementById('fieldCommunity').value.trim();
+    const monthly   = document.getElementById('fieldMonthly').value;
+    const ytd       = document.getElementById('fieldYTD').value;
+    const status    = document.getElementById('fieldStatus').value;
+
+    if (!name)      { alert('Builder Name is required.'); return; }
+    if (!community) { alert('Community is required.'); return; }
+
+    if (editId) {
+      const idx = accounts.findIndex(x => x.id === editId);
+      if (idx !== -1) accounts[idx] = { id: editId, name, community, monthly, ytd, status };
+    } else {
+      accounts.push({ id: uid(), name, community, monthly, ytd, status });
+    }
+
+    save();
+    render();
+    closeForm();
+  }
+
+  // ── Delete modal ─────────────────────────────────────────
+  function openConfirm(id) {
+    deleteId = id;
+    const a = accounts.find(x => x.id === id);
+    document.getElementById('confirmName').textContent = a ? a.name : '';
+    document.getElementById('confirmOverlay').classList.add('open');
+  }
+
+  function closeConfirm() {
+    document.getElementById('confirmOverlay').classList.remove('open');
+    deleteId = null;
+  }
+
+  function confirmDelete() {
+    accounts = accounts.filter(x => x.id !== deleteId);
+    save();
+    render();
+    closeConfirm();
+  }
+
+  // ── Close on backdrop click ───────────────────────────────
+  document.getElementById('formOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeForm();
+  });
+
+  document.getElementById('confirmOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeConfirm();
+  });
+
+  // ── Header date ───────────────────────────────────────────
+  document.getElementById('headerDate').textContent = new Date().toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  });
+
+  // ── Init ──────────────────────────────────────────────────
+  render();
+</script>
+</body>
+</html>
